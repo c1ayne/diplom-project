@@ -1,0 +1,37 @@
+# MQTT configure
+mqtt:
+  broker-url: ${MQTT_BROKER_URL:tcp://localhost:1883}
+  client-id: mqtt-kafka-bridge
+  topics:
+    - "alarm/#"
+    - "sensor/#"
+  qos: 1
+
+# Kafka configure
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        acks: "all"
+        retries: 3
+
+# app settings
+app:
+  routing:
+    critical-pattern: "alarm/#"
+    critical-topic: "kafka-critical"
+    telemetry-pattern: "sensor/#"
+    telemetry-topic: "kafka-telemetry"
+
+# health check
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always

@@ -1,0 +1,85 @@
+services:
+  # 1. MQTT broker (EMQX)
+  emqx:
+    image: emqx:5.6.0
+    container_name: emqx-broker
+    ports:
+      - "1883:1883"    # port
+      - "18083:18083"  # Веб-интерфейс (логин: admin, пароль: public)
+    environment:
+      EMQX_NODE_NAME: emqx@node1.emqx.io
+    networks:
+      - iot-network
+    restart: unless-stopped
+
+  # 2. ZooKeeper
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - iot-network
+    restart: unless-stopped
+
+  # 3. Apache Kafka
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: kafka-broker
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: 3
+    ports:
+      - "9092:9092"
+    networks:
+      - iot-network
+    restart: unless-stopped
+
+  # 4. MQTT-Kafka Bridge
+  mqtt-kafka-bridge:
+    build: ./bridge
+    container_name: mqtt-kafka-bridge
+    depends_on:
+      emqx:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    environment:
+      MQTT_BROKER_URL: "tcp://emqx:1883"
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+      SPRING_PROFILES_ACTIVE: "docker"
+    ports:
+      - "8080:8080"
+    networks:
+      - iot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 5. Generator
+  data-generator:
+    build: ./generator
+    container_name: data-generator
+    depends_on:
+      - emqx
+    environment:
+      MQTT_BROKER_URL: "tcp://emqx:1883"
+    networks:
+      - iot-network
+    restart: "no"
+
+networks:
+  iot-network:
+    driver: bridge
+    name: iot-network
