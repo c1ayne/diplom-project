@@ -6,8 +6,11 @@ services:
     ports:
       - "1883:1883"    # port
       - "18083:18083"  # Веб-интерфейс (логин: admin, пароль: public)
+      - "8083:8083"
     environment:
       EMQX_NODE_NAME: emqx@node1.emqx.io
+      EMQX_ALLOW_ANONYMOUS: "true"
+      EMQX_ACL_NOMATCH: "allow"
     networks:
       - iot-network
     restart: unless-stopped
