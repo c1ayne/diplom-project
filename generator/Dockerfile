@@ -12,6 +12,6 @@ FROM amazoncorretto:17-alpine
 
 WORKDIR /app
 
-COPY --from=builder /build/target/*.jar app.jar
+COPY --from=builder /build/target/generator-1.0-SNAPSHOT.jar app.jar
 
 ENTRYPOINT ["java", "-jar", "app.jar"]

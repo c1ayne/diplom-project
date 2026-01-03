@@ -1,5 +1,5 @@
 services:
-  # 1. MQTT broker (EMQX)
+  # 1 MQTT broker (EMQX)
   emqx:
     image: emqx:5.6.0
     container_name: emqx-broker
@@ -15,7 +15,7 @@ services:
       - iot-network
     restart: unless-stopped
 
-  # 2. ZooKeeper
+  # 2 ZooKeeper
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0
     container_name: zookeeper
@@ -26,7 +26,7 @@ services:
       - iot-network
     restart: unless-stopped
 
-  # 3. Apache Kafka
+  # 3 Apache Kafka
   kafka:
     image: confluentinc/cp-kafka:7.6.0
     container_name: kafka-broker
@@ -54,7 +54,7 @@ services:
       - iot-network
     restart: unless-stopped
 
-  # 4. MQTT-Kafka Bridge
+  # 4 MQTT-Kafka Bridge
   mqtt-kafka-bridge:
     build: ./bridge
     container_name: mqtt-kafka-bridge
@@ -79,7 +79,21 @@ services:
       retries: 3
       start_period: 40s
 
-  # 5. Generator
+  # 5 Consumer-service
+  consumer-service:
+    build: ./consumer-service  # Убедись, что папка называется именно так
+    container_name: consumer-service
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      # Важно: Внутри Docker мы используем внутренний порт 9092 и имя хоста kafka
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+    networks:
+      - iot-network
+    restart: unless-stopped
+
+  # 6 Generator
   data-generator:
     build: ./generator
     container_name: data-generator
