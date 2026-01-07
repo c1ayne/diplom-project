@@ -40,4 +40,9 @@ public class BridgeService {
 
         kafkaTemplate.send(kafkaTopic, mqttTopic, payload);
     }
+
+    public void kafkaFallback(Message<String> message, Throwable t) {
+        String topic = (String) message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC);
+        System.err.println("CIRCUIT OPEN! Dropping message from: " + topic);
+    }
 }
