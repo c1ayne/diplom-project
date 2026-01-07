@@ -1,4 +1,4 @@
-package com.diplom;
+package com.diplom.config;
 
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,8 +44,15 @@ public class MqttConfiguration {
 
         String clientId = "bridge-" + UUID.randomUUID();
 
+        String[] sharedTopics = new String[topics.length];
+        for (int i = 0; i < topics.length; i++) {
+            sharedTopics[i] = "$share/bridge-group/" + topics[i].trim();
+        }
+
+        System.out.println("Activating Shared Subscription: " + java.util.Arrays.toString(sharedTopics));
+
         MqttPahoMessageDrivenChannelAdapter adapter =
-                new MqttPahoMessageDrivenChannelAdapter(clientId, mqttClientFactory(), topics);
+                new MqttPahoMessageDrivenChannelAdapter(clientId, mqttClientFactory(), sharedTopics);
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new DefaultPahoMessageConverter());
         adapter.setQos(1);

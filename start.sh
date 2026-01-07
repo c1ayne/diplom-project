@@ -15,7 +15,7 @@ helm repo add emqx https://repos.emqx.io/charts
 helm upgrade --install my-emqx emqx/emqx \
   --namespace iot-system \
   --set replicaCount=1 \
-  --wait # Ждем готовности
+  --wait
 
 # Strimzi Operator
 helm repo add strimzi https://strimzi.io/charts/

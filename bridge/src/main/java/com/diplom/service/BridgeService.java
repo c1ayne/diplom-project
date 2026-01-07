@@ -1,5 +1,6 @@
 package com.diplom.service;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -16,6 +17,7 @@ public class BridgeService {
     }
 
     @ServiceActivator(inputChannel = "mqttInputChannel")
+    @CircuitBreaker(name = "kafkaBreaker", fallbackMethod = "kafkaFallback")
     public void routeMessage(Message<String> message) {
 
         String payload = message.getPayload();
