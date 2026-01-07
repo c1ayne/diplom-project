@@ -15,3 +15,16 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
       acks: all
+      batch-size: 16384
+      properties:
+        linger.ms: 20
+        buffer.memory: 33554432
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      kafkaBreaker:
+        failureRateThreshold: 50
+        minimumNumberOfCalls: 10
+        waitDurationInOpenState: 10000
+        permittedNumberOfCallsInHalfOpenState: 3
