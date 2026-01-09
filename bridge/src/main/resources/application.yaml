@@ -28,3 +28,12 @@ resilience4j:
         minimumNumberOfCalls: 10
         waitDurationInOpenState: 10000
         permittedNumberOfCallsInHalfOpenState: 3
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name:bridge-service}
