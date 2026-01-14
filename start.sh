@@ -23,6 +23,14 @@ helm upgrade --install strimzi-kafka strimzi/strimzi-kafka-operator \
   --namespace iot-system \
   --wait
 
+# PostgreSQL HA
+echo -e "${YELLOW}Deploying PostgreSQL HA...${NC}"
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm upgrade --install my-db bitnami/postgresql \
+  --namespace iot-system \
+  -f k8s/postgres-values.yaml \
+  --wait
+
 echo -e "${YELLOW}Applying Configs & Kafka Cluster...${NC}"
 kubectl apply -f k8s/configmap.yaml
 kubectl apply -f k8s/secrets.yaml
