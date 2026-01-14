@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: bridge-svc
+  namespace: iot-system
+  labels:
+    app: bridge
+spec:
+  selector:
+    app: bridge
+  ports:
+    - name: http-web
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: consumer-svc
+  namespace: iot-system
+  labels:
+    app: consumer
+spec:
+  selector:
+    app: consumer
+  ports:
+    - name: http-web
+      port: 8080
+      targetPort: 8080
