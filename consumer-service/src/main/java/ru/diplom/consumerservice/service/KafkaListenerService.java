@@ -1,8 +1,12 @@
 package ru.diplom.consumerservice.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
+import ru.diplom.consumerservice.entity.SensorData;
+import ru.diplom.consumerservice.repository.SensorDataRepository;
 
 import java.util.Collections;
 import java.util.Set;
@@ -10,6 +14,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class KafkaListenerService {
+
+    private final SensorDataRepository repository;
+
+    private final ObjectMapper objectMapper;
+
+    public KafkaListenerService(SensorDataRepository repository, ObjectMapper objectMapper) {
+        this.repository = repository;
+        this.objectMapper = objectMapper;
+    }
 
     private final Set<String> processedMessageIds = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
@@ -32,6 +45,24 @@ public class KafkaListenerService {
         System.out.println("   Value: " + record.value());
         System.out.println("   Partition: " + record.partition() + ", Offset: " + record.offset());
 
+        try {
+            JsonNode json = objectMapper.readTree(record.value());
+
+            SensorData data = new SensorData();
+            data.setDeviceId(json.get("deviceId").asText());
+            data.setType(json.get("type").asText());
+            data.setValue(json.get("value").asDouble());
+            data.setTimestamp(json.get("timestamp").asLong());
+
+            repository.save(data);
+
+            System.out.println("[DB] Saved: " + data.getDeviceId());
+
+        } catch (Exception e) {
+            System.err.println("DB Error: " + e.getMessage());
+            throw new RuntimeException(e);
+        }
+
         if (processedMessageIds.size() > 1000) processedMessageIds.clear();
         processedMessageIds.add(messageId);
     }
@@ -53,6 +84,24 @@ public class KafkaListenerService {
         System.err.println("   [ALARM] CRITICAL EVENT RECEIVED:");
         System.err.println("   Source: " + record.key());
         System.err.println("   Payload: " + record.value());
+
+        try {
+            JsonNode json = objectMapper.readTree(record.value());
+
+            SensorData data = new SensorData();
+            data.setDeviceId(json.get("deviceId").asText());
+            data.setType(json.get("type").asText());
+            data.setValue(json.get("value").asDouble());
+            data.setTimestamp(json.get("timestamp").asLong());
+
+            repository.save(data);
+
+            System.out.println("[DB] Saved: " + data.getDeviceId());
+
+        } catch (Exception e) {
+            System.err.println("DB Error: " + e.getMessage());
+            throw new RuntimeException(e);
+        }
 
         if (processedMessageIds.size() > 1000) processedMessageIds.clear();
         processedMessageIds.add(messageId);

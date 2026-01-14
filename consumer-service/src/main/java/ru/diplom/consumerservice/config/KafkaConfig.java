@@ -1,5 +1,6 @@
 package ru.diplom.consumerservice.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.common.TopicPartition;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,5 +23,10 @@ public class KafkaConfig {
                 });
 
         return new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 2));
+    }
+
+    @Bean
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper();
     }
 }
