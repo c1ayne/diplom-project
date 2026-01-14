@@ -25,8 +25,7 @@ helm upgrade --install strimzi-kafka strimzi/strimzi-kafka-operator \
 
 # PostgreSQL HA
 echo -e "${YELLOW}Deploying PostgreSQL HA...${NC}"
-helm repo add bitnami https://charts.bitnami.com/bitnami
-helm upgrade --install my-db bitnami/postgresql \
+helm upgrade --install my-db oci://registry-1.docker.io/bitnamicharts/postgresql \
   --namespace iot-system \
   -f k8s/postgres-values.yaml \
   --wait
