@@ -1,0 +1,33 @@
+global:
+  storageClass: "standard"
+
+architecture: replication
+
+auth:
+  username: "iot_user"
+  password: "iot_password"
+  database: "iot_data"
+  postgresPassword: "admin_password"
+
+primary:
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  persistence:
+    enabled: false
+
+readReplicas:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  persistence:
+    enabled: false
