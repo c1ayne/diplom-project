@@ -3,20 +3,19 @@ package ru.diplom.consumerservice.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import ru.diplom.consumerservice.entity.SensorData;
 import ru.diplom.consumerservice.repository.SensorDataRepository;
 
-import java.util.Collections;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-
 @Service
 public class KafkaListenerService {
 
-    private final SensorDataRepository repository;
+    private static final Logger log = LoggerFactory.getLogger(KafkaListenerService.class);
 
+    private final SensorDataRepository repository;
     private final ObjectMapper objectMapper;
 
     public KafkaListenerService(SensorDataRepository repository, ObjectMapper objectMapper) {
@@ -24,71 +23,58 @@ public class KafkaListenerService {
         this.objectMapper = objectMapper;
     }
 
-    private final Set<String> processedMessageIds = Collections.newSetFromMap(new ConcurrentHashMap<>());
-
+    /**
+     * Обработчик телеметрических данных из топика kafka-telemetry.
+     * Идемпотентность обеспечивается уникальным ограничением на уровне БД
+     * по полю message_id (topic + partition + offset).
+     */
     @KafkaListener(topics = "kafka-telemetry", groupId = "telemetry_group")
     public void listenTelemetry(ConsumerRecord<String, String> record) {
+        log.info("[Telemetry] Получено сообщение: topic={}, partition={}, offset={}, key={}",
+                record.topic(), record.partition(), record.offset(), record.key());
 
-        String messageId = generateUniqueId(record);
-
-        if (processedMessageIds.contains(messageId)) {
-            System.out.println("Duplicate detected, skipping: " + messageId);
-            return;
-        }
-
-        if (record.value().contains("poison")) {
-            throw new RuntimeException("Simulated Poison Pill Error!");
-        }
-
-        System.out.println("   [Telemetry] Received:");
-        System.out.println("   Key (Original Topic): " + record.key());
-        System.out.println("   Value: " + record.value());
-        System.out.println("   Partition: " + record.partition() + ", Offset: " + record.offset());
-
-        try {
-            JsonNode json = objectMapper.readTree(record.value());
-
-            SensorData data = new SensorData();
-            data.setDeviceId(json.get("deviceId").asText());
-            data.setType(json.get("type").asText());
-            data.setValue(json.get("value").asDouble());
-            data.setTimestamp(json.get("timestamp").asLong());
-
-            repository.save(data);
-
-            System.out.println("[DB] Saved: " + data.getDeviceId());
-
-        } catch (Exception e) {
-            System.err.println("DB Error: " + e.getMessage());
-            throw new RuntimeException(e);
-        }
-
-        if (processedMessageIds.size() > 1000) processedMessageIds.clear();
-        processedMessageIds.add(messageId);
+        processAndSave(record);
     }
 
+    /**
+     * Обработчик критических событий из топика kafka-critical.
+     * Приоритетная обработка: логируется на уровне WARN для выделения в мониторинге.
+     */
     @KafkaListener(topics = "kafka-critical", groupId = "alert_group")
     public void listenCritical(ConsumerRecord<String, String> record) {
+        log.warn("[CRITICAL] Получено критическое событие: topic={}, partition={}, offset={}, source={}",
+                record.topic(), record.partition(), record.offset(), record.key());
 
-        String messageId = generateUniqueId(record);
+        processAndSave(record);
+    }
 
-        if (processedMessageIds.contains(messageId)) {
-            System.err.println("⚠️ Duplicate ALARM detected, skipping: " + messageId);
+    /**
+     * Общий метод парсинга и сохранения сообщения в БД.
+     * Уникальный messageId формируется из координат записи в Kafka (topic-partition-offset),
+     * что обеспечивает идемпотентность на уровне персистентного хранилища:
+     * повторная запись с тем же messageId будет отклонена ограничением уникальности БД.
+     *
+     * @param record запись из Kafka с метаданными и payload
+     */
+    private void processAndSave(ConsumerRecord<String, String> record) {
+        // Симуляция "отравленного" сообщения для тестирования DLQ
+        if (record.value().contains("poison")) {
+            throw new RuntimeException("Симуляция Poison Pill: сообщение направляется в DLQ");
+        }
+
+        String messageId = generateMessageId(record);
+
+        // Проверка дубликата через БД — идемпотентность переживает перезапуск сервиса
+        if (repository.existsByMessageId(messageId)) {
+            log.warn("Дубликат обнаружен, пропуск: messageId={}", messageId);
             return;
         }
-
-        if (record.value().contains("poison")) {
-            throw new RuntimeException("Simulated Poison Pill Error in ALARM!");
-        }
-
-        System.err.println("   [ALARM] CRITICAL EVENT RECEIVED:");
-        System.err.println("   Source: " + record.key());
-        System.err.println("   Payload: " + record.value());
 
         try {
             JsonNode json = objectMapper.readTree(record.value());
 
             SensorData data = new SensorData();
+            data.setMessageId(messageId);
             data.setDeviceId(json.get("deviceId").asText());
             data.setType(json.get("type").asText());
             data.setValue(json.get("value").asDouble());
@@ -96,18 +82,20 @@ public class KafkaListenerService {
 
             repository.save(data);
 
-            System.out.println("[DB] Saved: " + data.getDeviceId());
+            log.info("[DB] Сохранено: messageId={}, deviceId={}", messageId, data.getDeviceId());
 
         } catch (Exception e) {
-            System.err.println("DB Error: " + e.getMessage());
-            throw new RuntimeException(e);
+            log.error("[DB] Ошибка сохранения: messageId={}, причина={}", messageId, e.getMessage(), e);
+            // Перебрасываем исключение, чтобы сработал DefaultErrorHandler → DLQ
+            throw new RuntimeException("Ошибка обработки сообщения: " + messageId, e);
         }
-
-        if (processedMessageIds.size() > 1000) processedMessageIds.clear();
-        processedMessageIds.add(messageId);
     }
 
-    private String generateUniqueId(ConsumerRecord<?, ?> record) {
-        return record.topic() + "-" + record.partition() + record.offset();
+    /**
+     * Формирует уникальный идентификатор сообщения на основе координат записи в Kafka.
+     * Комбинация topic + partition + offset гарантированно уникальна в рамках кластера.
+     */
+    private String generateMessageId(ConsumerRecord<?, ?> record) {
+        return record.topic() + "-" + record.partition() + "-" + record.offset();
     }
 }

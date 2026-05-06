@@ -1,10 +1,10 @@
 services:
-  # 1 MQTT broker (EMQX)
+  # 1. MQTT-брокер (EMQX)
   emqx:
     image: emqx:5.6.0
     container_name: emqx-broker
     ports:
-      - "1883:1883"    # port
+      - "1883:1883"    # MQTT
       - "18083:18083"  # Веб-интерфейс (логин: admin, пароль: public)
       - "8083:8083"
     environment:
@@ -15,7 +15,7 @@ services:
       - iot-network
     restart: unless-stopped
 
-  # 2 ZooKeeper
+  # 2. ZooKeeper
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0
     container_name: zookeeper
@@ -26,7 +26,7 @@ services:
       - iot-network
     restart: unless-stopped
 
-  # 3 Apache Kafka
+  # 3. Apache Kafka
   kafka:
     image: confluentinc/cp-kafka:7.6.0
     container_name: kafka-broker
@@ -54,7 +54,26 @@ services:
       - iot-network
     restart: unless-stopped
 
-  # 4 MQTT-Kafka Bridge
+  # 4. PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_DB: iot_data
+      POSTGRES_USER: iot_user
+      POSTGRES_PASSWORD: iot_password
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iot_user -d iot_data"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - iot-network
+    restart: unless-stopped
+
+  # 5. MQTT-Kafka Bridge
   mqtt-kafka-bridge:
     build: ./bridge
     container_name: mqtt-kafka-bridge
@@ -79,21 +98,26 @@ services:
       retries: 3
       start_period: 40s
 
-  # 5 Consumer-service
+  # 6. Consumer Service
   consumer-service:
-    build: ./consumer-service  # Убедись, что папка называется именно так
+    build: ./consumer-service
     container_name: consumer-service
     depends_on:
       kafka:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
     environment:
-      # Важно: Внутри Docker мы используем внутренний порт 9092 и имя хоста kafka
       SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+      DB_HOST: "postgres"
+      DB_NAME: "iot_data"
+      DB_USER: "iot_user"
+      DB_PASS: "iot_password"
     networks:
       - iot-network
     restart: unless-stopped
 
-  # 6 Generator
+  # 7. Генератор данных
   data-generator:
     build: ./generator
     container_name: data-generator

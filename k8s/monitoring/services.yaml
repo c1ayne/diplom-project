@@ -26,4 +26,4 @@ spec:
   ports:
     - name: http-web
       port: 8080
-      targetPort: 8080
+      targetPort: 8081

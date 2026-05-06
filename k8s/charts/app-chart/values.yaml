@@ -1,25 +1,32 @@
-replicaCount: 1
+﻿replicaCount: 1
 
 image:
   repository: nginx
   pullPolicy: Never
   tag: "latest"
 
+service:
+  port: 8080
+
 autoscaling:
   enabled: false
   minReplicas: 1
-  maxReplicas: 10
+  maxReplicas: 3
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
 
 resources:
   requests:
-    cpu: 100m
-    memory: 128Mi
+    cpu: 50m
+    memory: 256Mi
   limits:
     cpu: 500m
     memory: 512Mi
 
 env: {}
-
 secretName: ""
+
+probes:
+  enabled: true
+  readinessInitialDelay: 20
+  livenessInitialDelay: 40

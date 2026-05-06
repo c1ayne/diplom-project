@@ -4,10 +4,12 @@ server:
 app:
   mqtt:
     broker-url: ${MQTT_BROKER_URL:tcp://localhost:1883}
-    client-id: bridge-service-v1
+    # topics: список MQTT-топиков для подписки (Shared Subscription применяется в MqttConfiguration)
     topics: sensors/#, alerts/#
 
-# Kafka configure
+# Конфигурация Kafka-продюсера
+# Примечание: параметры batch-size, linger.ms и buffer.memory продублированы
+# в KafkaConfiguration, так как ProducerFactory создаётся вручную
 spring:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9093}

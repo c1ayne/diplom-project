@@ -8,5 +8,5 @@ data:
   KAFKA_BOOTSTRAP_SERVERS: "my-cluster-kafka-bootstrap.iot-system.svc.cluster.local:9092"
   SPRING_KAFKA_BOOTSTRAP_SERVERS: "my-cluster-kafka-bootstrap.iot-system.svc.cluster.local:9092"
   SPRING_PROFILES_ACTIVE: "k8s"
-  DB_HOST: "my-db-postgresql-primary.iot-system.svc.cluster.local"
+  DB_HOST: "my-db-postgresql.iot-system.svc.cluster.local"
   DB_NAME: "iot_data"
