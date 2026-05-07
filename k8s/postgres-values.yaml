@@ -1,7 +1,9 @@
 ﻿global:
   storageClass: "standard"
 
-architecture: standalone
+# Режим репликации: primary (мастер) + readReplicas (слейвы)
+# Позволяет горизонтально масштабировать read-реплики через scale.ps1
+architecture: replication
 
 auth:
   username: "iot_user"
@@ -10,6 +12,19 @@ auth:
   postgresPassword: "admin_password"
 
 primary:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+  persistence:
+    enabled: false
+
+readReplicas:
+  # Начальное число слейвов
+  replicaCount: 1
   resources:
     requests:
       cpu: 100m

@@ -1,13 +1,16 @@
-﻿# start.ps1 — Развертывание стенда из локальных файлов (без интернета)
+﻿# start.ps1 - Развертывание стенда (kind + локальный registry)
 
-function Write-Green($text) { Write-Host $text -ForegroundColor Green }
+function Write-Green($text)  { Write-Host $text -ForegroundColor Green }
 function Write-Yellow($text) { Write-Host $text -ForegroundColor Yellow }
-function Write-Red($text) { Write-Host $text -ForegroundColor Red }
+function Write-Red($text)    { Write-Host $text -ForegroundColor Red }
 
 if (-not (Get-Command helm -ErrorAction SilentlyContinue)) {
     Write-Red "Helm не найден. Установи: choco install kubernetes-helm -y"
     exit 1
 }
+
+# Адрес локального registry - образы пушатся сюда, kind тянет отсюда
+$REGISTRY = "localhost:5001"
 
 Write-Green "=== Запуск стенда ==="
 kubectl create namespace iot-system --dry-run=client -o yaml | kubectl apply -f -
@@ -44,22 +47,63 @@ Write-Yellow "Ожидание Kafka (3-5 минут)..."
 kubectl wait kafka/my-cluster --for=condition=Ready --timeout=300s -n iot-system
 if ($LASTEXITCODE -ne 0) { Write-Red "Kafka не готова"; exit 1 }
 
-Write-Yellow "6. Сборка образов..."
-docker build -t diplomat/bridge:k8s ./bridge
-if ($LASTEXITCODE -ne 0) { Write-Red "Ошибка сборки bridge"; exit 1 }
-docker build -t diplomat/consumer:k8s ./consumer-service
-if ($LASTEXITCODE -ne 0) { Write-Red "Ошибка сборки consumer-service"; exit 1 }
-docker build -t diplomat/generator:k8s ./generator
-if ($LASTEXITCODE -ne 0) { Write-Red "Ошибка сборки generator"; exit 1 }
+# --- Сборка и публикация образов в локальный registry ---
+# В kind imagePullPolicy=Never не работает для образов не из registry.
+# Все образы пушатся в localhost:5001, который смонтирован в каждую ноду как kind-registry:5000
+Write-Yellow "6. Сборка и публикация образов..."
+
+$services = @(
+    @{ Name = "bridge";           Dir = ".\bridge";           Tag = "$REGISTRY/diplomat/bridge:k8s" },
+    @{ Name = "consumer-service"; Dir = ".\consumer-service"; Tag = "$REGISTRY/diplomat/consumer:k8s" },
+    @{ Name = "generator";        Dir = ".\generator";        Tag = "$REGISTRY/diplomat/generator:k8s" }
+)
+
+foreach ($svc in $services) {
+    Write-Host "   Сборка: $($svc.Name)..." -ForegroundColor Gray
+    docker build -t $svc.Tag $svc.Dir
+    if ($LASTEXITCODE -ne 0) { Write-Red "Ошибка сборки $($svc.Name)"; exit 1 }
+
+    Write-Host "   Публикация: $($svc.Tag)..." -ForegroundColor Gray
+    docker push $svc.Tag
+    if ($LASTEXITCODE -ne 0) { Write-Red "Ошибка публикации $($svc.Name)"; exit 1 }
+}
 
 Write-Yellow "7. Деплой микросервисов..."
-helm upgrade --install bridge ./k8s/charts/app-chart --namespace iot-system --set image.repository=diplomat/bridge --set image.tag=k8s --set image.pullPolicy=Never --set replicaCount=1 --set service.port=8080 --set secretName=iot-secrets --set autoscaling.enabled=true --set autoscaling.minReplicas=1 --set probes.readinessInitialDelay=70 --set probes.livenessInitialDelay=100
-helm upgrade --install consumer ./k8s/charts/app-chart --namespace iot-system --set image.repository=diplomat/consumer --set image.tag=k8s --set image.pullPolicy=Never --set replicaCount=1 --set service.port=8081 --set secretName=iot-secrets --set probes.readinessInitialDelay=100 --set probes.livenessInitialDelay=150
-helm upgrade --install generator ./k8s/charts/app-chart --namespace iot-system --set image.repository=diplomat/generator --set image.tag=k8s --set image.pullPolicy=Never --set replicaCount=1 --set probes.enabled=false
+
+helm upgrade --install bridge ./k8s/charts/app-chart `
+    --namespace iot-system `
+    --set image.repository=$REGISTRY/diplomat/bridge `
+    --set image.tag=k8s `
+    --set image.pullPolicy=Always `
+    --set replicaCount=1 `
+    --set service.port=8080 `
+    --set secretName=iot-secrets `
+    --set autoscaling.enabled=true `
+    --set autoscaling.minReplicas=1 `
+    --set probes.readinessInitialDelay=70 `
+    --set probes.livenessInitialDelay=100
+
+helm upgrade --install consumer ./k8s/charts/app-chart `
+    --namespace iot-system `
+    --set image.repository=$REGISTRY/diplomat/consumer `
+    --set image.tag=k8s `
+    --set image.pullPolicy=Always `
+    --set replicaCount=1 `
+    --set service.port=8081 `
+    --set secretName=iot-secrets `
+    --set probes.readinessInitialDelay=100 `
+    --set probes.livenessInitialDelay=150
+
+helm upgrade --install generator ./k8s/charts/app-chart `
+    --namespace iot-system `
+    --set image.repository=$REGISTRY/diplomat/generator `
+    --set image.tag=k8s `
+    --set image.pullPolicy=Always `
+    --set replicaCount=1 `
+    --set probes.enabled=false
 
 Write-Yellow "8. Services и ServiceMonitor..."
 kubectl apply -f k8s\monitoring\services.yaml
-kubectl apply -f k8s\monitoring\servicemonitor.yaml
 
 Write-Green "=== Стенд запущен! ==="
 kubectl get pods -n iot-system

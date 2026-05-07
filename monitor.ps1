@@ -1,6 +1,6 @@
-﻿# monitor.ps1 — Развертывание мониторинга из локальных файлов
+﻿# monitor.ps1 - Развертывание мониторинга из локальных файлов
 
-function Write-Green($text) { Write-Host $text -ForegroundColor Green }
+function Write-Green($text)  { Write-Host $text -ForegroundColor Green }
 function Write-Yellow($text) { Write-Host $text -ForegroundColor Yellow }
 
 Write-Green "=== Развертывание мониторинга ==="
