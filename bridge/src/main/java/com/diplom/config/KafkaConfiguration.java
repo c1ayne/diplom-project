@@ -16,16 +16,15 @@ import java.util.Map;
  * Конфигурация Kafka-продюсера.
  *
  * Параметры надёжности:
- * - acks=all: подтверждение от лидера и всех синхронных реплик (ISR) перед
- *   подтверждением записи продюсеру — максимальная гарантия сохранности данных.
+ * - acks=all: подтверждение от лидера и всех синхронных реплик перед
+ *   подтверждением записи продюсеру.
  * - enable.idempotence=true: продюсер присваивает каждому сообщению уникальный
  *   sequence number, что исключает дубликаты при повторных отправках после сбоя сети.
  *
  * Параметры производительности:
- * - linger.ms=20: продюсер накапливает сообщения до 20 мс перед отправкой пакета,
- *   увеличивая пропускную способность за счёт батчинга.
- * - batch.size=16384: максимальный размер пакета в байтах (16 КБ).
- * - buffer.memory=33554432: объём буфера продюсера в байтах (32 МБ).
+ * - linger.ms=20: продюсер накапливает сообщения до 20 мс перед отправкой пакета.
+ * - batch.size=16384: максимальный размер пакета в байтах.
+ * - buffer.memory=33554432: объём буфера продюсера в байтах.
  */
 @Configuration
 public class KafkaConfiguration {
@@ -48,8 +47,7 @@ public class KafkaConfiguration {
         configProps.put(ProducerConfig.ACKS_CONFIG, "all");
         configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
 
-        // Параметры производительности (дублируют application.yaml явно,
-        // так как ProducerFactory создаётся вручную и не читает spring.kafka.producer.*)
+        // Параметры производительности
         configProps.put(ProducerConfig.LINGER_MS_CONFIG, 20);
         configProps.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384);
         configProps.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 33554432L);

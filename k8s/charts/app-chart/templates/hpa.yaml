@@ -12,14 +12,12 @@ spec:
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:
-    # Масштабирование по CPU: срабатывает при длительной высокой нагрузке на обработку сообщений
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
           averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
-    # Масштабирование по памяти: актуально для Consumer Service при росте объёма входящих данных
     - type: Resource
       resource:
         name: memory

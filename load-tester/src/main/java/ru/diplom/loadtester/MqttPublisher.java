@@ -11,11 +11,6 @@ import java.util.UUID;
 
 /**
  * MQTT-клиент для нагрузочного тестирования.
- *
- * Отличия от MqttManager в generator:
- * - Использует MemoryPersistence (не нужна персистентность между запусками теста)
- * - CleanSession=true (каждый запуск теста — новая сессия)
- * - QoS задаётся сценарием, а не хардкодится
  */
 public class MqttPublisher implements AutoCloseable {
 

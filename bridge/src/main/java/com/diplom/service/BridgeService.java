@@ -23,11 +23,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * - Circuit Breaker (Resilience4j) защищает от каскадных сбоев при недоступности Kafka.
  * - При открытом Circuit Breaker критические сообщения буферизуются в памяти
  *   и повторно отправляются при восстановлении соединения.
- * - Телеметрия при открытом Circuit Breaker отбрасывается (допустимо по условиям задачи).
- *
- * Ограничение: буфер критических сообщений хранится в памяти.
- * При перезапуске сервиса буферизованные сообщения будут потеряны.
- * Для production-среды следует использовать персистентный буфер (Redis, локальный файл).
+ * - Телеметрия при открытом Circuit Breaker отбрасывается.
  */
 @Service
 public class BridgeService {
@@ -42,26 +38,15 @@ public class BridgeService {
 
     private final KafkaTemplate<String, String> kafkaTemplate;
 
-    /**
-     * Буфер критических сообщений на время недоступности Kafka.
-     * ConcurrentLinkedQueue — потокобезопасная, неблокирующая очередь.
-     */
     private final Queue<Message<String>> criticalMessageBuffer = new ConcurrentLinkedQueue<>();
 
     public BridgeService(KafkaTemplate<String, String> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    /**
-     * Основной обработчик входящих MQTT-сообщений.
-     * Вызывается Spring Integration для каждого сообщения из mqttInputChannel.
-     * Circuit Breaker перехватывает исключения Kafka и при превышении порога ошибок
-     * перенаправляет вызов в fallback-метод.
-     */
     @ServiceActivator(inputChannel = "mqttInputChannel")
     @CircuitBreaker(name = "kafkaBreaker", fallbackMethod = "kafkaFallback")
     public void routeMessage(Message<String> message) {
-        // Попытка повторной отправки буферизованных критических сообщений
         drainCriticalBuffer();
 
         String payload   = message.getPayload();
@@ -81,8 +66,6 @@ public class BridgeService {
             log.info("[Telemetry] Маршрутизация: {} -> {}", mqttTopic, kafkaTopic);
         }
 
-        // Ключ сообщения = исходный MQTT-топик: обеспечивает упорядоченность
-        // сообщений от одного устройства в рамках одной партиции Kafka
         kafkaTemplate.send(kafkaTopic, mqttTopic, payload);
     }
 

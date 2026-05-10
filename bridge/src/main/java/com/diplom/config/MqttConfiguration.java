@@ -25,8 +25,7 @@ import java.util.UUID;
  *   неподтверждённые QoS 1 сообщения на время переподключения моста.
  *   В сочетании с QoS 1 это обеспечивает гарантию at-least-once на входе пайплайна.
  * - Shared Subscriptions ($share/bridge-group/...): позволяют запускать несколько
- *   экземпляров моста одновременно — брокер балансирует сообщения между ними,
- *   обеспечивая горизонтальное масштабирование без дублирования обработки.
+ *   экземпляров моста одновременно — брокер балансирует сообщения между ними.
  */
 @Configuration
 public class MqttConfiguration {
@@ -45,8 +44,6 @@ public class MqttConfiguration {
         MqttConnectOptions options = new MqttConnectOptions();
         options.setServerURIs(new String[]{brokerUrl});
         options.setAutomaticReconnect(true);
-        // CleanSession=false: брокер сохраняет состояние сессии между переподключениями,
-        // гарантируя доставку буферизованных QoS 1 сообщений после восстановления связи
         options.setCleanSession(false);
         factory.setConnectionOptions(options);
         return factory;
@@ -59,12 +56,8 @@ public class MqttConfiguration {
 
     @Bean
     public MessageProducer inbound() {
-        // UUID в clientId обеспечивает уникальность при горизонтальном масштабировании:
-        // каждый экземпляр моста регистрируется в брокере под своим идентификатором
         String clientId = "bridge-" + UUID.randomUUID();
 
-        // Shared Subscriptions: префикс $share/<group>/<topic> инструктирует брокер
-        // доставлять каждое сообщение только одному подписчику из группы (балансировка нагрузки)
         String[] sharedTopics = new String[topics.length];
         for (int i = 0; i < topics.length; i++) {
             sharedTopics[i] = "$share/bridge-group/" + topics[i].trim();

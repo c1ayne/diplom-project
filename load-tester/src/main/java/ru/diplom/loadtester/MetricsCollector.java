@@ -4,7 +4,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Потокобезопасный сборщик метрик нагрузочного теста.
- * Использует AtomicLong для корректной работы в многопоточной среде.
  *
  * Собираемые метрики:
  * - Количество отправленных сообщений
@@ -33,7 +32,6 @@ public class MetricsCollector {
         messagesSent.incrementAndGet();
         totalLatencyMs.addAndGet(latencyMs);
 
-        // Атомарное обновление максимума без локов
         long currentMax;
         do {
             currentMax = maxLatencyMs.get();

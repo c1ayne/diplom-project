@@ -16,10 +16,6 @@ import java.util.concurrent.TimeUnit;
  * Симулирует поведение парка промышленных датчиков и насосов:
  * - С вероятностью ~90% публикует штатные показания температуры (топик sensors/#, QoS 1)
  * - С вероятностью ~10% публикует критическое событие перегрева (топик alerts/#, QoS 2)
- *
- * Выбор уровней QoS соответствует теоретическому обоснованию в дипломной работе:
- * - QoS 1 (at-least-once) для телеметрии: допустимы редкие дубликаты, важна скорость
- * - QoS 2 (exactly-once) для алертов: критична однократная гарантированная доставка
  */
 public class App {
 
@@ -93,14 +89,12 @@ public class App {
                 TimeUnit.MILLISECONDS.sleep(PUBLISH_INTERVAL_MS);
 
             } catch (InterruptedException e) {
-                // Корректная обработка сигнала остановки: восстанавливаем флаг и завершаем цикл
                 log.info("Генератор получил сигнал остановки, завершение работы...");
                 Thread.currentThread().interrupt();
                 break;
             } catch (MqttException e) {
                 log.error("Ошибка публикации MQTT: {}", e.getMessage(), e);
-                // AutomaticReconnect=true обрабатывает переподключение,
-                // небольшая пауза предотвращает busy-loop при длительном сбое
+                // AutomaticReconnect=true обрабатывает переподключение
                 try {
                     TimeUnit.SECONDS.sleep(1);
                 } catch (InterruptedException ie) {

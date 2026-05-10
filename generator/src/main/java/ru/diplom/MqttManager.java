@@ -44,7 +44,7 @@ public class MqttManager {
         String publisherId = "generator-" + UUID.randomUUID();
 
         // Файловая персистентность гарантирует сохранность неотправленных сообщений
-        // при аварийном завершении процесса (в отличие от MemoryPersistence)
+        // при аварийном завершении процесса
         MqttDefaultFilePersistence persistence = new MqttDefaultFilePersistence(PERSISTENCE_DIR);
 
         MqttClient client = new MqttClient(brokerUrl, publisherId, persistence);
@@ -58,7 +58,6 @@ public class MqttManager {
 
         log.info("Подключение к MQTT-брокеру: {} как {}", brokerUrl, publisherId);
 
-        // Retry-цикл: брокер может быть ещё не готов при старте контейнера
         MqttException lastException = null;
         for (int attempt = 1; attempt <= MAX_CONNECT_RETRIES; attempt++) {
             try {

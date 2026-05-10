@@ -44,7 +44,6 @@ public class KafkaConfig {
                     return new TopicPartition(record.topic() + ".DLT", record.partition());
                 });
 
-        // Экспоненциальный backoff: более агрессивные повторы для критических топиков
         ExponentialBackOff backOff = new ExponentialBackOff(1000L, 2.0);
         backOff.setMaxInterval(10_000L);  // максимум 10 секунд между попытками
         backOff.setMaxElapsedTime(30_000L); // не более 30 секунд суммарно (~3 попытки)

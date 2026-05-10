@@ -25,8 +25,6 @@ public class KafkaListenerService {
 
     /**
      * Обработчик телеметрических данных из топика kafka-telemetry.
-     * Идемпотентность обеспечивается уникальным ограничением на уровне БД
-     * по полю message_id (topic + partition + offset).
      */
     @KafkaListener(topics = "kafka-telemetry", groupId = "telemetry_group")
     public void listenTelemetry(ConsumerRecord<String, String> record) {
@@ -38,7 +36,6 @@ public class KafkaListenerService {
 
     /**
      * Обработчик критических событий из топика kafka-critical.
-     * Приоритетная обработка: логируется на уровне WARN для выделения в мониторинге.
      */
     @KafkaListener(topics = "kafka-critical", groupId = "alert_group")
     public void listenCritical(ConsumerRecord<String, String> record) {
@@ -50,9 +47,7 @@ public class KafkaListenerService {
 
     /**
      * Общий метод парсинга и сохранения сообщения в БД.
-     * Уникальный messageId формируется из координат записи в Kafka (topic-partition-offset),
-     * что обеспечивает идемпотентность на уровне персистентного хранилища:
-     * повторная запись с тем же messageId будет отклонена ограничением уникальности БД.
+     * Уникальный messageId формируется из координат записи в Kafka (topic-partition-offset).
      *
      * @param record запись из Kafka с метаданными и payload
      */
@@ -86,7 +81,6 @@ public class KafkaListenerService {
 
         } catch (Exception e) {
             log.error("[DB] Ошибка сохранения: messageId={}, причина={}", messageId, e.getMessage(), e);
-            // Перебрасываем исключение, чтобы сработал DefaultErrorHandler → DLQ
             throw new RuntimeException("Ошибка обработки сообщения: " + messageId, e);
         }
     }

@@ -1,8 +1,7 @@
 ﻿global:
   storageClass: "standard"
 
-# Режим репликации: primary (мастер) + readReplicas (слейвы)
-# Позволяет горизонтально масштабировать read-реплики через scale.ps1
+# Режим репликации: primary (мастер) + readReplicas
 architecture: replication
 
 auth:
@@ -23,7 +22,6 @@ primary:
     enabled: false
 
 readReplicas:
-  # Начальное число слейвов
   replicaCount: 1
   resources:
     requests:
